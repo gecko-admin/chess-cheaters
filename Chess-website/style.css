@@ -11,3 +11,11 @@ body{font-family:var(--font)}header{background:#20221e;color:#f5ecdc}.wordmark{f
 .page-heading h1,.directory h1{font:800 clamp(32px,4.2vw,56px)/1.06 var(--font);letter-spacing:-.055em}.panelTitle,#puzzles h2,dialog h2{font:750 26px/1.16 var(--font);letter-spacing:-.04em}aside{border:1px solid #49483e;padding:23px;background:#282923;border-radius:9px}.directory a{font-weight:700}.directory small{font-weight:450}
 .crumbs{font-size:12px;color:#c8c0af;margin:0 0 11px}.crumbs a{color:#e6c69d}.crumbs span{margin:0 6px}
 .explore{background:#1c1e1b;color:#f5ecdc;border-top:1px solid #48473b;margin-top:32px;padding:29px max(20px,calc((100% - 1036px)/2)) 28px}.explore-grid{display:grid;grid-template-columns:1fr 1.25fr 1.4fr 1fr;gap:22px}.explore h2,.explore h3{margin:0}.explore h2{font-size:23px;margin-bottom:20px}.explore h3{font-size:13px;color:#e5c39a;margin-bottom:8px}.explore a{display:block;color:#ddd8cb;text-decoration:none;font-size:13px;line-height:1.45;padding:3px 0}.explore a:hover{text-decoration:underline;color:#fff3dd}.explore ul{list-style:none;padding:0;margin:0}.maker{display:flex;align-items:center;justify-content:space-between;gap:15px;flex-wrap:wrap;border-top:1px solid #48473b;margin-top:24px;padding-top:18px;font-size:14px}.maker p{margin:0}.socials{display:flex;gap:18px}.socials a{text-decoration:underline;text-underline-offset:3px;color:#e5c39a}@media(max-width:760px){.explore-grid{grid-template-columns:1fr 1fr}aside{padding:18px}}
+#page-guide{max-width:1100px;margin:36px auto;padding:24px 32px 0;border-top:1px solid #49483e}
+#page-guide section,#page-guide details{max-width:72ch}
+#page-guide h2,#page-guide summary{margin:1.6em 0 .5em;font:700 clamp(20px,2.4vw,28px)/1.22 var(--font);letter-spacing:-.025em;color:#f3e8d8}
+#page-guide p{font-size:16px;line-height:1.72;color:#d9d1c3;margin:.6em 0 1em}
+#page-guide summary{cursor:pointer}
+.boardbar{flex-wrap:wrap;gap:4px}.boardbar>div{white-space:nowrap}
+@media(max-width:740px){#page-guide{margin:20px auto;padding:8px 16px 0}}
+#page-guide a{color:#e5c39a;text-underline-offset:.16em}

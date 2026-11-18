@@ -289,10 +289,15 @@ const pieceImages={"P":"UklGRiIYAABXRUJQVlA4WAoAAAAQAAAAxwAAxwAAQUxQSO4HAAAB8Idt
 function piece(p){return '<img class="piece" draggable="false" alt="" src="data:image/webp;base64,'+pieceImages[p]+'">'}
 let s=readFen(startFen),mode='edit',tool='move',sel=-1,flipped=false,royal=true,human=1,worker=null,marks=[],log=[],past=[],origin=null,result='';
 try{let saved=localStorage.getItem('variation.position');if(saved)s=readFen(saved);const v=localStorage.getItem('chess.setupVariant');if(['three','hill','forced','suicide'].includes(v))s.variant=v}catch{}
-function save(){try{localStorage.setItem('variation.position',fen(s));localStorage.setItem('chess.setupVariant',s.variant||'standard')}catch{}}
-function stop(){if(worker)worker.terminate();worker=null}
+let setupStart=startFen;
+function restoreSetupStart(){
+ try{return fen(readFen(localStorage.getItem('chess.setupStart')||startFen))}catch{return startFen}
+}
+function save(){try{localStorage.setItem('variation.position',fen(s));localStorage.setItem('chess.setupStart',setupStart);localStorage.setItem('chess.setupVariant',s.variant||'standard')}catch{}}
+let searchVersion=0;
+function stop(){searchVersion++;if(worker)worker.terminate();worker=null}
 function clearHint(){stop();marks=[];result=''}
-function record(){past.push({s:structuredClone(s),log:log.slice()});if(past.length>200)past.shift()}
+function record(){past.push({s:structuredClone(s),log:log.slice(),setupStart});if(past.length>200)past.shift()}
 function edited(){clearHint();sel=-1;s.rights='';s.ep=-1;s.half=0;save();render()}
 const variants={
  standard:['Standard / sandbox','Checkmate wins. With custom armies missing a king, leave the opponent without a move.'],
@@ -333,9 +338,11 @@ $('elo').onchange=()=>{
 };
 function run(ai){
  clearHint();
+ const version=searchVersion;
  const request={s,elo:ai?Number($('elo').value):null,royal:mode==='edit'?gameRoyal(s):royal};
  if(!ai)result='Analysing '+colour(s.t)+'’s move…';
  function finish({best,depth}){
+  if(version!==searchVersion)return;
   stop();
   if(ai&&best){commit(best);return}
   if(best){marks=[best.a,best.z];result=colour(s.t)+' · '+names[s.b[best.a].toLowerCase()]+' '+nameOf(best.a)+' → '+nameOf(best.z)+(best.pr?' = '+names[best.pr]:'')+' · Depth '+depth}
@@ -343,7 +350,8 @@ function run(ai){
   render();
  }
  function localReply(){
-  stop();
+  if(version!==searchVersion)return;
+  if(worker)worker.terminate();
   const timer=setTimeout(()=>finish(chooseMove(request)),30);
   worker={terminate:()=>clearTimeout(timer)};
  }
@@ -414,15 +422,15 @@ document.addEventListener('keydown',e=>{
  if((e.key==='Delete'||e.key==='Backspace')&&mode==='edit'&&sel>=0&&!document.querySelector('dialog').open){e.preventDefault();record();s.b[sel]='';edited()}
 });
 for(const [id,t] of [['w',1],['b',-1]])$(id).onclick=()=>{if(t!==s.t){record();s={...s,t,ep:-1};clearHint();save();render()}};
-$('flip').onclick=()=>{flipped=!flipped;render()};$('undo').onclick=()=>{if(!past.length)return;clearHint();let v=past.pop();if(mode==='game')while(v.s.t!==human&&past.length)v=past.pop();s=v.s;log=v.log;sel=-1;if(mode==='edit')save();render()};
-function replace(n){record();n.variant=s.variant;s=n;sel=-1;clearHint();save();render()}
+$('flip').onclick=()=>{flipped=!flipped;render()};$('undo').onclick=()=>{if(!past.length)return;clearHint();let v=past.pop();if(mode==='game')while(v.s.t!==human&&past.length)v=past.pop();s=v.s;log=v.log;sel=-1;if(mode==='edit'){setupStart=v.setupStart||startFen;save()}render()};
+function replace(n){record();n.variant=s.variant;setupStart=fen(n);s=n;sel=-1;clearHint();save();render()}
 $('preset').onchange=e=>{let v=e.target.value;if(v==='fen'){render();modal('Import a position','<p>Paste a FEN to include the side to move, castling rights and en passant square.</p><textarea id="inputfen" aria-label="FEN position"></textarea><p id="error"></p><button id="import">Import position</button>',()=>$('import').onclick=()=>{try{replace(readFen($('inputfen').value));$('close').click()}catch(e){$('error').textContent=e.message}})}else replace(readFen(v==='standard'?startFen:(challenges.find(c=>c[0]===v)?.[2]||'8/8/8/8/8/8/8/8')+' w - - 0 1'))};
 function valid(){if(!s.b.some(p=>p&&white(p))||!s.b.some(p=>p&&!white(p))){result='Add at least one piece of each colour.';render();return false}if(['three','hill','forced'].includes(s.variant)&&!royalBoard(s)){result='Use one king per side for '+variants[s.variant][0]+'. Add the missing king or choose Standard board.';render();return false}
  if(s.variant==='hill'&&objectiveWinner(s)){result='Start both kings outside the four centre squares.';render();return false}
  if(gameRoyal(s)&&attacked(s.b,s.b.indexOf(s.t===1?'k':'K'),s.t)){result='The side that just moved is in check. Change the side to move or adjust the position.';render();return false}return true}
 $('analyse').onclick=()=>{if(valid())run(false)};
 $('play').onclick=()=>{if(mode==='game'){clearHint();s=origin.s;past=origin.past;log=[];mode='edit';sel=-1;render();return}if(!valid())return;modal('Play as…','<p>'+colour(s.t)+' moves first from this position.</p><button id="asw">White</button><button id="asb">Black</button>',()=>{for(const [id,t] of [['asw',1],['asb',-1]])$(id).onclick=()=>{$('close').click();clearHint();origin={s:structuredClone(s),past};past=[];royal=gameRoyal(s);human=t;flipped=t===-1;sel=-1;mode='game';gameID=newID();render();if(s.t!==human&&!over())run(true)}})};
-$('help').onclick=()=>modal('How to play','<p>Drag pieces around the board to arrange them. Drag one off the board to remove it, or drag a spare piece onto a square to add it. Undo restores your last edit. You can also tap a piece, then its destination.</p><p>Choose the side to move, then play the computer or find a suggested move. For a game already in progress, import its FEN to preserve special move rights. Manual piece edits clear these rights.</p><p>Choose Game rules before starting. The computer and move suggestions use those rules. Historical puzzles use standard chess. The app automatically claims a draw on the third occurrence of the same position. Pawns promote on reaching the last rank.</p>');
+$('help').onclick=()=>modal('How to play','<p>Drag pieces around the board to arrange them. Drag one off the board to remove it, or drag a spare piece onto a square to add it. Undo restores your last edit. Reset returns to your selected setup, the start of your game or the first move of your puzzle. You can also tap a piece, then its destination.</p><p>Choose the side to move, then play the computer or find a suggested move. For a game already in progress, import its FEN to preserve special move rights. Manual piece edits clear these rights.</p><p>Choose Game rules before starting. The computer and move suggestions use those rules. Historical puzzles use standard chess. The app automatically claims a draw on the third occurrence of the same position. Pawns promote on reaching the last rank.</p>');
 let gameID='',currentPuzzle=null,pStep=0,pAlt='',feedback='',lastPosition='',boardReturn='',suspendSave=false;
 const newID=()=>Array.from(crypto.getRandomValues(new Uint8Array(12)),v=>v.toString(16).padStart(2,'0')).join('');
 function option(parent,id,title){let o=document.createElement('option');o.value=id;o.textContent=title;$(parent).append(o)}
@@ -485,7 +493,25 @@ function restore(hash){
 function openPuzzle(id){const p=puzzles.find(p=>p.id===id);restore('#puzzle/'+p.id)}
 function visitPuzzle(id){const file='puzzles/'+id+'.html';if(typeof navigateLocal==='function')navigateLocal(file);else location.assign(pageHref(file))}
 $('puzzlepick').onchange=e=>visitPuzzle(e.target.value);
-$('retry').onclick=()=>{loadPuzzle(currentPuzzle);render()};
+$('reset').onclick=()=>{
+ cleanDrag();
+ clearHint();
+ sel=-1;tool='move';
+ if(mode==='puzzle'){
+  loadPuzzle(currentPuzzle);
+ }else if(mode==='game'){
+  s=structuredClone(origin.s);
+  past=[];log=[];
+ }else{
+  record();
+  const variant=s.variant;
+  s=readFen(setupStart);
+  s.variant=variant;
+  save();
+ }
+ render();
+ if(mode==='game'&&s.t!==human&&!over())run(true);
+};
 $('nextp').onclick=()=>visitPuzzle(puzzles[(puzzles.indexOf(currentPuzzle)+1)%puzzles.length].id);
 $('hint').onclick=()=>{const sq=currentPuzzle.line[pStep].slice(0,2);marks=[idx(sq)];feedback='Look at the '+names[s.b[idx(sq)].toLowerCase()].toLowerCase()+' on '+sq+'.';render()};
 $('copylink').onclick=async()=>{const link=location.href;try{await navigator.clipboard.writeText(link);$('copylink').textContent='Copied';setTimeout(()=>$('copylink').textContent='Copy resume link',1600)}catch{modal('Resume link','<textarea id="resumeText" aria-label="Resume link" readonly></textarea>',()=>{$('resumeText').value=link;$('resumeText').select()})}};
@@ -494,6 +520,7 @@ function routeFromLocation(){if(location.hash){try{restore(location.hash);return
 window.addEventListener('hashchange',routeFromLocation);
 function initialisePage(fresh=false){
  if(page.kind==='directory')return;
+ setupStart=page.kind==='board'?restoreSetupStart():page.kind==='challenge'?challenges.find(c=>c[0]===page.id)[2]+' w - - 0 1':startFen;
  if(fresh||!location.hash){
   if(page.kind==='puzzle')loadPuzzle(puzzles.find(p=>p.id===page.id));
   if(['variant','level','challenge'].includes(page.kind)){
