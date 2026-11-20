@@ -493,7 +493,16 @@ function restore(hash){
 function openPuzzle(id){const p=puzzles.find(p=>p.id===id);restore('#puzzle/'+p.id)}
 function visitPuzzle(id){const file='puzzles/'+id+'.html';if(typeof navigateLocal==='function')navigateLocal(file);else location.assign(pageHref(file))}
 $('puzzlepick').onchange=e=>visitPuzzle(e.target.value);
-$('reset').onclick=()=>{
+// Older published pages have a puzzle-only restart control and no board reset.
+let resetButton=$('reset');
+if(!resetButton){
+ resetButton=document.createElement('button');
+ resetButton.id='reset';resetButton.type='button';resetButton.textContent='Reset';
+ resetButton.title='Return to the starting position';
+ $('flip').before(resetButton);
+}
+if($('retry'))$('retry').hidden=true;
+resetButton.onclick=()=>{
  cleanDrag();
  clearHint();
  sel=-1;tool='move';
